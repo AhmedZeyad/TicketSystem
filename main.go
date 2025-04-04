@@ -1,9 +1,9 @@
 package main
 
 import (
-
-	"github.com/AhmedZeyad/TicketSystem/utilities"
 	"github.com/gin-gonic/gin"
+	"github.com/AhmedZeyad/TicketSystem/lib/users"
+	"github.com/AhmedZeyad/TicketSystem/utilities"
 )
 
 func init() {
@@ -34,7 +34,11 @@ func main() {
 			"DB":      "API is working ✅",
 		})
 	})
-	
+	router.GET("/users", users.GetUsers)
+	router.GET("/users/:id", users.GetUserById)
+	router.POST("/users", users.AddUser)
+	router.PUT("/users", users.EditUser)
+	router.DELETE("/users/:id", users.DeleteUser)
 
 	router.Run(":9090")
 
