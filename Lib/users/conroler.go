@@ -30,14 +30,26 @@ func(u *User) getUserById()  error {
 	}
 	return  nil
 }
+func(u *User) getUserByPhonNumber()  error {
+
+	err := utilities.DB.Get(u, "SELECT * from Users WHERE phone_number = ? LIMIT 1", u.PhoneNumber)
+	if err != nil {
+
+		return  err
+	}
+	return  nil
+}
 
 func (u *User) InsertUser() error {
 	u.CreatedAt = time.Now()
-	resoult, err := utilities.DB.Exec("INSERT INTO Users (id, name, email, created_at, role_id) VALUES (null,?,?,?,?)", u.Name, u.Email, u.CreatedAt, u.RoleID)
+	resoult, err := utilities.DB.Exec("INSERT INTO Users (id, name, email, created_at, role_id, password_hash, phone_number) VALUES (null,?,?,?,?,?,?)", u.Name, u.Email, u.CreatedAt, u.RoleID, u.Password, u.PhoneNumber)
 	if err != nil {
 		println(err.Error(), time.Now().String())
 		return err
 	}
+	println("asdfdsf",u.PhoneNumber)
+	println(u.Password)
+
 	id, err := resoult.LastInsertId()
 	if err != nil {
 		return err
