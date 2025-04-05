@@ -1,13 +1,15 @@
 package main
 
 import (
+	"github.com/AhmedZeyad/TicketSystem/lib/ticket"
 	"github.com/AhmedZeyad/TicketSystem/lib/users"
 	"github.com/AhmedZeyad/TicketSystem/utilities"
 	"github.com/gin-gonic/gin"
 )
 
 func ApiRouter(r *gin.Engine) {
-	api:=r.Group("/api")
+	api := r.Group("/api")
+
 
 	api.GET("/status", func(ctx *gin.Context) {
 		_, err := utilities.DB.Exec("USE TicketSys")
@@ -27,6 +29,7 @@ func ApiRouter(r *gin.Engine) {
 			"DB":      "API is working ✅",
 		})
 	})
+ticket.TicketRoutes(api)
 	users.UserRoutes(api)
 
 }
