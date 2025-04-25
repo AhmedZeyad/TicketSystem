@@ -1,0 +1,20 @@
+Create Table if not exists  tickets (
+id int  primary key auto_increment,
+userId int,
+reason varchar(20),
+rub_reason varchar(20), 
+discreption varchar(255),
+assignTo  int,
+ status  enum('panding','in_progres','wating_for_customer_respons','resolved','not_resolved')not null  default 'panding' ,
+created_at timestamp default current_timestamp not null,
+  created_by int not null ,
+  updated_at timestamp default current_timestamp not null,
+  updated_by int not null ,
+  deleted_at timestamp ,
+  deleted_by int ,
+  foreign key (userId) REFERENCES users(id),
+  foreign key (assignTo) REFERENCES users(id),
+  foreign key (created_by) REFERENCES users(id),
+  foreign key (updated_by) REFERENCES users(id),
+  foreign key (deleted_by) REFERENCES users(id)
+);
