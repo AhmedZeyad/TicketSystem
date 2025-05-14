@@ -9,18 +9,22 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
-	ID          int       `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Email       string    `json:"email" db:"email"`
-	Password    string    `json:"-" db:"password"`
+	ID       int    `json:"id" db:"id"`
+	Name     string `json:"name" db:"name"`
+	Email    string `json:"email" db:"email"`
+	Password string `json:"-" db:"password"`
 	// PhoneNumber string    `json:"phone_number" db:"phone_number"`
-	CreatedAt   time.Time `db:"created_at" json:"-"`
-	RoleID      int       `json:"rol_id" db:"rol_id"`
+	CreatedAt time.Time `db:"created_at" json:"-"`
+	RoleID    int       `json:"rol_id" db:"rol_id"`
+}
+type RefreshToken struct {
+	ID     int    `json:"id" db:"id"`
+	UserID int    `json:"userId" db:"userId"`
+	Token  string `json:"token" db:"token"`
 }
 
 func getUsers() ([]User, error) {
@@ -36,7 +40,7 @@ func getUsers() ([]User, error) {
 }
 func (u *User) getUserById() error {
 
-	err := engine.DB.Get(u, "SELECT * from users WHERE id = ? LIMIT 1", u.ID)
+	err := engine.DB.Get(u, "SELECT * from users WHERE id = ?  ", u.ID)
 	if err != nil {
 
 		return err
@@ -268,25 +272,96 @@ func Login(context *gin.Context) {
 		return
 	}
 	// generate token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":           user.ID,
-		"role":         user.RoleID,
-		"email":        user.Email,
-		"name":         user.Name,
-		"exp":          time.Now().Add(time.Hour * 24 * 30).Unix(),
-	})
-	tokenString, err := token.SignedString([]byte(os.Getenv("SECRETKEY")))
+	tokenString, err := engine.GenerateToken(engine.Claims{Subject: loginInfo.ID, UserName: loginInfo.Name, RoleID: user.RoleID})
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"msg": "failed to gen token"})
 		return
 	}
-	// set toke in cookie
+	// generate refresh token
+	refresToken, err := engine.GenerateRefreshToken(user.ID)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"msg": "failed in gen process"})
+	}
+	// add to db
+	id, err := isRefreshTokenAvailable(user.ID)
+	if err != nil {
 
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+	if id == 0 {
+
+		if err:= InsertToken(user.ID, refresToken); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+	}
+	if id > 0 {
+		if err:=UpdateRefresToken(tokenString,id); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+	
+
+	}
 	context.SetSameSite(http.SameSiteLaxMode)
-	context.SetCookie("token", tokenString, 3600*24*30, "", "", false, true)
-	context.JSON(http.StatusOK, gin.H{"token": tokenString})
+	context.SetCookie("token", tokenString, 3600*2, "", "", true, true)
+	context.SetCookie("refreshToken", refresToken, 3600*24*30, "", "", true, true)
+	context.JSON(http.StatusOK, gin.H{"token": tokenString, "refreshtoken": refresToken})
 }
 
+func tokeAdding(id int) error {
+	tokenID, err := isRefreshTokenAvailable(id)
+	if err != nil {
+		return err
+	}
+	if tokenID == -1 {
+
+		return errors.New("token not found")
+	}
+	return nil
+}
+func isRefreshTokenAvailable(userId int) (int, error) {
+	var refreshToken RefreshToken
+	if err := engine.DB.Get(&refreshToken, "select id from refreshToken where userId=?", userId); err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return 0, nil
+		}
+		return -1, err
+
+	}
+
+	return refreshToken.ID, nil
+}
+func InsertToken(userid int, token string) error {
+	resoult, err := engine.DB.Exec(`insert into refreshToken (userId,token) values(?,?)`, userid, token)
+	if err != nil {
+		return err
+	}
+	effectedRow, err := resoult.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if effectedRow == 0 {
+		return errors.New("plz try again")
+	}
+	return nil
+}
+func UpdateRefresToken(token string,id int) error {
+	_, err := engine.DB.Exec(`Update refreshToken set  token =? where userId=?`,token, id)
+	if err != nil {
+		return err
+	}
+	
+	
+	return nil
+}
 func hashPassword(password string) (string, error) {
 	strCost := os.Getenv("COST")
 	cost, err := strconv.Atoi(strCost)
@@ -309,7 +384,7 @@ func UserRoutes(rg *gin.RouterGroup) {
 	user.POST("/singup", AddUser)
 	user.POST("/Login", Login)
 	user.POST("/Logout", engine.CheckAuth, func(context *gin.Context) {
-context.SetCookie("token", "", -1, "", "", false, true)
-context.JSON(http.StatusOK, gin.H{"msg": "logout"})
+		context.SetCookie("token", "", -1, "", "", false, true)
+		context.JSON(http.StatusOK, gin.H{"msg": "logout"})
 	})
 }

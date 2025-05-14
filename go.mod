@@ -1,4 +1,4 @@
-module github.com/AhmedZeyad/TicketSystem
+module TicketSystem
 go 1.24.0
 
 require (
