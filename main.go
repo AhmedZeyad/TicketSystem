@@ -48,5 +48,6 @@ func ApiRouter(r *gin.Engine) {
 	service.TicketRoutes(api)
 	service.UserRoutes(api)
 	service.TicketReasonRoutes(api)
+	service.UploadRoutes(api)
 
 }

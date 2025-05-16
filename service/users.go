@@ -272,7 +272,7 @@ func Login(context *gin.Context) {
 		return
 	}
 	// generate token
-	tokenString, err := engine.GenerateToken(engine.Claims{Subject: loginInfo.ID, UserName: loginInfo.Name, RoleID: user.RoleID})
+	tokenString, err := engine.GenerateToken(engine.Claims{Subject: user.ID, UserName: loginInfo.Name, RoleID: user.RoleID, Email: user.Email})
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"msg": "failed to gen token"})
 		return
@@ -293,7 +293,7 @@ func Login(context *gin.Context) {
 	}
 	if id == 0 {
 
-		if err:= InsertToken(user.ID, refresToken); err != nil {
+		if err := InsertToken(user.ID, refresToken); err != nil {
 			context.JSON(http.StatusBadRequest, gin.H{
 				"message": err.Error(),
 			})
@@ -301,13 +301,12 @@ func Login(context *gin.Context) {
 		}
 	}
 	if id > 0 {
-		if err:=UpdateRefresToken(tokenString,id); err != nil {
+		if err := UpdateRefresToken(tokenString, id); err != nil {
 			context.JSON(http.StatusBadRequest, gin.H{
 				"message": err.Error(),
 			})
 			return
 		}
-	
 
 	}
 	context.SetSameSite(http.SameSiteLaxMode)
@@ -353,13 +352,12 @@ func InsertToken(userid int, token string) error {
 	}
 	return nil
 }
-func UpdateRefresToken(token string,id int) error {
-	_, err := engine.DB.Exec(`Update refreshToken set  token =? where userId=?`,token, id)
+func UpdateRefresToken(token string, id int) error {
+	_, err := engine.DB.Exec(`Update refreshToken set  token =? where userId=?`, token, id)
 	if err != nil {
 		return err
 	}
-	
-	
+
 	return nil
 }
 func hashPassword(password string) (string, error) {
