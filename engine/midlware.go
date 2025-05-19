@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -84,9 +85,18 @@ func CheckAuth(context *gin.Context) {
 			return
 
 		}
-
+		uid := claims["sub"]
+		fmt.Printf("111 not valid user id %d", uid)
 		// store user id in context
-		context.Set("userId", claims["sub"])
+		if claims["sub"] == 0 {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"message": "not valid user id",
+				"value":   claims["sub"],
+				"sucress": false,
+			})
+			return
+		}
+		context.Set("userId", uid)
 		// continue
 
 		context.Next()
