@@ -1,1 +1,1 @@
-DELETE TABLE IF EXISTS reasons;
+DROP TABLE IF EXISTS reasons;

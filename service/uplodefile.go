@@ -2,12 +2,14 @@ package service
 
 import (
 	"TicketSystem/engine"
+	"errors"
 	"fmt"
 	"log"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,13 +17,41 @@ import (
 	"github.com/google/uuid"
 )
 
-var basePath = "assets"
-
-func UploadRoutes(rg *gin.RouterGroup) {
-	api := rg.Group("assets/")
-	api.POST("upload", engine.CheckAuth, UploadFile)
-	api.GET("download/:filename", engine.CheckAuth, GetFile)
+type TicketImage struct {
+	ID          int       `json:"id" db:"id"`
+	FileName    string    `json:"fileName" db:"fileName"`
+	FilePath    string    `json:"filePath" db:"filePath"`
+	TicketId    int       `json:"ticketId" db:"ticketId"`
+	ContentType string    `json:"contentType" db:"contentType"`
+	UplodeBy    int       `json:"uplode_by" db:"uplode_by"`
+	UplodeAt    time.Time `json:"uplode_at" db:"uplode_at"`
 }
+
+const basePath = "assets"
+
+func (image *TicketImage) InsertFileInfo() error {
+	resoult, err := engine.DB.Exec(`INSERT INTO TicketImages (fileName,filePath,ticketId,contentType,uplode_by) VALUES (?,?,?,?,?)`, image.FileName, image.FilePath, image.TicketId, image.ContentType, image.UplodeBy)
+	if err != nil {
+		return err
+	}
+
+	RowAffected, err := resoult.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if RowAffected < 1 {
+		return errors.New("not row affected")
+	}
+return nil
+}
+func(file *TicketImage) getFileInfbyID()(error){
+	if err:= engine.DB.Get(file,`SELECT id ,fileName,filePath,ticketId,uplode_by FROM TicketImages Where ticketId=?`,file.TicketId);err!=nil{
+		return err
+	}
+	return nil
+
+}
+
 func UploadFile(context *gin.Context) {
 	var isAllowed = map[string]bool{
 		"jpg":  true,
@@ -30,9 +60,8 @@ func UploadFile(context *gin.Context) {
 		"pdf":  true,
 		"docx": false,
 	}
-
-	// userID := context.MustGet("userId").(int)
-
+var fileInfo TicketImage
+userID :=int( context.MustGet("userId").(float64))
 	// check if the post request has the file
 	file, err := context.FormFile("file")
 	if err != nil {
@@ -43,8 +72,23 @@ func UploadFile(context *gin.Context) {
 		})
 		return
 	}
-
-	fileParts := strings.Split(file.Filename, ".")
+	fileInfoID:=context.PostForm("ticket_id")
+	if fileInfoID==""{
+		context.JSON(400,gin.H{
+			"message":"id is requierd",
+			"success":false,
+		})
+return
+	}
+fileInfo.TicketId,err=strconv.Atoi(fileInfoID)
+if err!=nil{
+	context.JSON(400,gin.H{
+		"message":"not valid id",
+		"success":false,
+	})
+return
+}
+fileParts := strings.Split(file.Filename, ".")
 	if len(fileParts) < 2 {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"message": "file name not valid",
@@ -54,8 +98,8 @@ func UploadFile(context *gin.Context) {
 	}
 
 	fileExtention := strings.ToLower(fileParts[len(fileParts)-1])
-	fmt.Println(fileExtention)
-	fmt.Println(file.Size)
+	// fmt.Println(fileExtention)
+	// fmt.Println(file.Size)
 
 	// the file.size i get the size in byte
 	if file.Size > (5 << 20) {
@@ -81,16 +125,27 @@ func UploadFile(context *gin.Context) {
 	var uniqefname = fmt.Sprintf("%d_%d.%s", time.Now().Unix(), uuid.New().ID(), fileExtention)
 	// todo store name in db
 	// for save paht joining
-fullPath := filepath.Join(basePath, uniqefname)
+	fullPath := filepath.Join(basePath, uniqefname)
 	if err := context.SaveUploadedFile(file, fullPath); err != nil {
 		context.String(http.StatusBadRequest, fmt.Sprintf("upload error: %s", err.Error()))
 		return
 	}
-log.Printf("user uploded file %s , it saved as %s",file.Filename,fullPath)
+	log.Printf("user uploded file %s , it saved as %s content type %s", file.Filename, fullPath, context.ContentType())
+	fileInfo.FileName=file.Filename
+	fileInfo.FilePath=fullPath
+	fileInfo.UplodeBy=userID
+
+	if err:=fileInfo.InsertFileInfo();err!=nil{
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+			"success": false,
+		})
+		return
+	}
 	context.JSON(http.StatusOK, gin.H{
-		"message": "file uploded successfly",
-		"file_name":uniqefname,
-		"success": true,
+		"message":   "file uploded successfly",
+		"file_name": uniqefname,
+		"success":   true,
 	})
 }
 
@@ -117,9 +172,34 @@ done Silent Failures – Errors may happen without clear logs or messages if not
 
 func GetFile(context *gin.Context) {
 
-	filename := context.Param("filename")
-	fullPath :=filepath.Join( basePath , filename)
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+	var file TicketImage
+	strTicketID := context.Param("ticketID")
+	if strTicketID==""{
+		print(strTicketID)
+		context.JSON(400,gin.H{
+			"message":"id is requierd",
+			"success":false,
+		})
+		return
+	}
+fileId,err:=strconv.Atoi(strTicketID)
+if err!=nil{
+	context.JSON(400,gin.H{
+		"message":"not valid id",
+		"success":false,
+	})
+	return
+}
+file.TicketId=fileId
+if err :=file.getFileInfbyID();err!=nil{
+	context.JSON(http.StatusBadRequest, gin.H{
+		"message": err.Error(),
+		"success": false,
+	})
+	return
+}
+	// fullPath := filepath.Join()
+	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"message": "file not found",
 			"success": false,
@@ -128,23 +208,21 @@ func GetFile(context *gin.Context) {
 	}
 
 	context.Header("Content-Description", "File Transfer")
-context.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	context.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", file.FileName))
 
-mimeType := mime.TypeByExtension(filepath.Ext(filename))
-if mimeType != "" {
-	context.Header("Content-Type", mimeType)
-} else {
-	context.Header("Content-Type", "application/octet-stream")
+	mimeType := mime.TypeByExtension(filepath.Ext(file.FileName))
+	if mimeType != "" {
+		context.Header("Content-Type", mimeType)
+	} else {
+		context.Header("Content-Type", "application/octet-stream")
+	}
+
+
+	context.File(file.FilePath)
+	log.Printf("user downloded file %s", file.FileName)
+	
+
 }
-
-
-	context.Header("Content-Type", "application/octet-stream")
-
-	context.File(fullPath)
-	log.Printf("user downloded file %s",filename)
-
-}
-
 
 /*
 chlenges
@@ -164,3 +242,8 @@ done ⚠️ File Not Found – If the file doesn’t exist, it may cause a serve
 
 ❌ Lack of Logging – No tracking of who downloads what, which can be important for auditing.
 */
+func UploadRoutes(rg *gin.RouterGroup) {
+	api := rg.Group("assets/")
+	api.POST("upload", engine.CheckAuth, UploadFile)
+	api.GET("download/:ticketID", engine.CheckAuth, GetFile)
+}
