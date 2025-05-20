@@ -22,6 +22,9 @@
 # done: Edit getfile endpoint 
 #     done get file info form db by id
 
+# done: ALTER table drop column contentType
+# done: pagination to tikets
+
 #todo: update env
 # Todo: add api port
 # Todo: take the expireation time from env 

@@ -22,7 +22,6 @@ type TicketImage struct {
 	FileName    string    `json:"fileName" db:"fileName"`
 	FilePath    string    `json:"filePath" db:"filePath"`
 	TicketId    int       `json:"ticketId" db:"ticketId"`
-	ContentType string    `json:"contentType" db:"contentType"`
 	UplodeBy    int       `json:"uplode_by" db:"uplode_by"`
 	UplodeAt    time.Time `json:"uplode_at" db:"uplode_at"`
 }
@@ -30,7 +29,7 @@ type TicketImage struct {
 const basePath = "assets"
 
 func (image *TicketImage) InsertFileInfo() error {
-	resoult, err := engine.DB.Exec(`INSERT INTO TicketImages (fileName,filePath,ticketId,contentType,uplode_by) VALUES (?,?,?,?,?)`, image.FileName, image.FilePath, image.TicketId, image.ContentType, image.UplodeBy)
+	resoult, err := engine.DB.Exec(`INSERT INTO TicketImages (fileName,filePath,ticketId,uplode_by) VALUES (?,?,?,?)`, image.FileName, image.FilePath, image.TicketId, image.UplodeBy)
 	if err != nil {
 		return err
 	}
@@ -51,6 +50,15 @@ func(file *TicketImage) getFileInfbyID()(error){
 	return nil
 
 }
+func(file *TicketImage) get(page int)(error){
+	page=(page-1)*10
+	if err:= engine.DB.Get(file,`SELECT id ,fileName,filePath,ticketId,uplode_by FROM TicketImages Where ticketId=? limit 10 offset ?`,file.TicketId,page);err!=nil{
+		return err
+	}
+	return nil
+
+}
+
 
 func UploadFile(context *gin.Context) {
 	var isAllowed = map[string]bool{
@@ -98,8 +106,6 @@ fileParts := strings.Split(file.Filename, ".")
 	}
 
 	fileExtention := strings.ToLower(fileParts[len(fileParts)-1])
-	// fmt.Println(fileExtention)
-	// fmt.Println(file.Size)
 
 	// the file.size i get the size in byte
 	if file.Size > (5 << 20) {
@@ -124,7 +130,7 @@ fileParts := strings.Split(file.Filename, ".")
 
 	var uniqefname = fmt.Sprintf("%d_%d.%s", time.Now().Unix(), uuid.New().ID(), fileExtention)
 	// todo store name in db
-	// for save paht joining
+	// for save path joining
 	fullPath := filepath.Join(basePath, uniqefname)
 	if err := context.SaveUploadedFile(file, fullPath); err != nil {
 		context.String(http.StatusBadRequest, fmt.Sprintf("upload error: %s", err.Error()))

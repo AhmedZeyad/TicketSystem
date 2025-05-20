@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS TicketImages (
   fileName varchar(25) NOT NULL,
   filePath varchar(255) NOT NULL,
   ticketId int NOT NULL,
-  contentType varchar(50),
   uplode_by int NOT NULL,
   uplode_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
   foreign key (tiketId) REFERENCES tickets(id),

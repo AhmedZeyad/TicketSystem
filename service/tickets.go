@@ -3,6 +3,7 @@ package service
 import (
 	"TicketSystem/engine"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -15,7 +16,7 @@ type Ticket struct {
 	Reason      string    `json:"reason" db:"reason"`
 	RubReason   string    `json:"rub_reason" db:"rub_reason"`
 	Description string    `json:"discreption" db:"discreption"`
-	AssignTo    *int       `json:"assignTo" db:"assignTo"`
+	AssignTo    *int      `json:"assignTo" db:"assignTo"`
 	Status      string    `json:"status" db:"status"` // Serialized JSON
 	CreatedAt   time.Time `json:"_" db:"created_at"`
 	CreatedBy   int       `json:"_" db:"created_by"`
@@ -40,10 +41,10 @@ const (
 	Canceled  string = "canceled"
 )
 
-func GetAllTickets() ([]Ticket, error) {
+func GetAllTickets(page int) ([]Ticket, error) {
 	var tickets []Ticket
-
-	err := engine.DB.Select(&tickets, "SELECT id,userId,reason,rub_reason,discreption,assignTo,status FROM tickets")
+	page = (page - 1) * 10
+	err := engine.DB.Select(&tickets, "SELECT id,userId,reason,rub_reason,discreption,assignTo,status FROM tickets limit 10 offset ?", page)
 	if err != nil {
 		println(err.Error())
 		return nil, err
@@ -95,8 +96,28 @@ func DeleteTicketById(id int) error {
 }
 
 func GetTickets(context *gin.Context) {
-	println("hi from tickets")
-	t, err := GetAllTickets()
+	// strPage := context.Params.ByName("page")
+	strPage  := context.DefaultQuery("page", "1") // default to page 1
+
+	log.Println("gglog")
+	log.Println(strPage)
+	
+	// strPage := context.Param("page")
+
+	if strPage == "" || strPage == "0" {
+		strPage = "1"
+	}
+	page, err := strconv.Atoi(strPage)
+
+	if err != nil {
+		context.JSON(400, gin.H{
+			"message": err.Error(),
+			"success": false,
+		})
+		return
+	}
+
+	t, err := GetAllTickets(page)
 	if err != nil {
 		println(err.Error())
 		context.JSON(400, gin.H{
@@ -118,7 +139,6 @@ func AddTicket(context *gin.Context) {
 	var t Ticket
 	err := context.BindJSON(&t)
 	if err != nil {
-		println(err.Error())
 		context.JSON(400, gin.H{
 			"message": err.Error(),
 		})
@@ -169,6 +189,7 @@ func DeleteTicket(context *gin.Context) {
 }
 func TicketRoutes(rg *gin.RouterGroup) {
 	api := rg.Group("tickets")
+	// api.GET("/:page", GetTickets)
 	api.GET("/", GetTickets)
 	api.POST("/", AddTicket)
 	api.PUT("/:id", EditTicket)
