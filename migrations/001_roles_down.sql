@@ -1,0 +1,1 @@
+Delete TABLE IF EXISTS roles;
