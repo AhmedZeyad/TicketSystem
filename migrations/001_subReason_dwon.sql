@@ -1,1 +1,1 @@
-DELETE TABLE IF EXISTS subReasons;
+DROP TABLE IF EXISTS subReasons;

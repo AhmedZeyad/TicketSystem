@@ -1,0 +1,1 @@
+Drop TABLE IF EXISTS refreshToken

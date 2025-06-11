@@ -1,0 +1,30 @@
+
+# done :improve climese
+  # done: create stract 
+  # done: get token from auuth heder
+
+# done: add refresh token
+  # done:generate refresh token
+  # done:  validae refresh token
+  # done: add refresh token to db
+  # done : remove refresh token form db when crete new token
+
+
+# done: uploding image
+# done: create tabel ticket image
+# done: add up and down migrations file
+
+# done : ulode endpoint 
+#     done add file info to db
+  #     done : Struct
+  #     done : insert method
+  #     done : getby id method
+# done: Edit getfile endpoint 
+#     done get file info form db by id
+
+# done: ALTER table drop column contentType
+# done: pagination to tikets
+
+#todo: update env
+# Todo: add api port
+# Todo: take the expireation time from env 
